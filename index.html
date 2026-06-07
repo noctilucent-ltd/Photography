@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frame & Focus — Photo Critique</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --accent: #c8a96e;
+    --accent2: #e8c98e;
+    --text: #e8e8e8;
+    --muted: #888;
+    --red: #e05c5c;
+    --green: #6ec89a;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  /* ── Header ── */
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .logo-text { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
+  .logo-sub { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+  .key-btn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; display: flex; align-items: center; gap: 6px; }
+  .key-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .key-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); }
+  .key-dot.active { background: var(--green); }
+
+  /* ── Modal ── */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 32px; width: 440px; max-width: 90vw; }
+  .modal h2 { font-size: 20px; margin-bottom: 8px; }
+  .modal p { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+  .modal input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; font-family: monospace; }
+  .modal input:focus { outline: none; border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-ghost { background: none; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+  /* ── Main ── */
+  main { max-width: 1200px; margin: 0 auto; padding: 40px 32px; }
+
+  /* ── Upload zone ── */
+  .upload-zone { border: 2px dashed var(--border); border-radius: 16px; padding: 60px 32px; text-align: center; cursor: pointer; transition: all 0.25s; background: var(--surface); position: relative; overflow: hidden; }
+  .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: #1a1710; }
+  .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.6; }
+  .upload-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+  .upload-sub { color: var(--muted); font-size: 14px; }
+  .upload-hint { margin-top: 12px; font-size: 12px; color: #555; }
+
+  /* ── Results ── */
+  .results { display: none; gap: 32px; }
+  .results.visible { display: grid; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 800px) { .results.visible { grid-template-columns: 1fr; } }
+
+  /* ── Photo panel ── */
+  .photo-panel { position: sticky; top: 24px; align-self: start; }
+  .photo-frame { border-radius: 12px; overflow: hidden; background: var(--surface2); border: 1px solid var(--border); max-height: 65vh; display: flex; align-items: center; justify-content: center; }
+  .photo-frame img { max-width: 100%; max-height: 65vh; object-fit: contain; display: block; }
+  .photo-meta { margin-top: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .photo-name { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+
+  /* ── Score tiles ── */
+  .score-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .score-tile { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+  .score-tile-num { font-size: 26px; font-weight: 700; color: var(--accent); line-height: 1; }
+  .score-tile-denom { font-size: 12px; color: var(--muted); }
+  .score-tile-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 5px; }
+
+  /* ── Language switcher ── */
+  .lang-switcher { display: flex; gap: 6px; margin-top: 16px; }
+  .lang-btn { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); padding: 8px 4px; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.2s; text-align: center; }
+  .lang-btn:hover { border-color: var(--accent); color: var(--text); }
+  .lang-btn.active { background: #1e1a10; border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .lang-btn.loading { opacity: 0.5; pointer-events: none; }
+
+  /* ── Feedback panel ── */
+  .feedback-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+  .feedback-header h2 { font-size: 22px; font-weight: 600; }
+  .overall-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  .badge-excellent { background: #1a3326; color: #6ec89a; border: 1px solid #2a5040; }
+  .badge-strong    { background: #1e2e1a; color: #8ed46e; border: 1px solid #3a5030; }
+  .badge-good      { background: #2a2210; color: #c8a96e; border: 1px solid #4a3820; }
+  .badge-developing{ background: #2a1e10; color: #c8906e; border: 1px solid #4a3020; }
+
+  /* ── Buttons ── */
+  .icon-btn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; white-space: nowrap; }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .icon-btn.copied, .icon-btn.success { border-color: var(--green); color: var(--green); }
+
+  /* ── Cards ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
+  .card-inner { padding: 16px 18px; }
+  .card-label { font-size: 11px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 10px; }
+
+  /* ── Collapsible sections ── */
+  .critique-section { margin-bottom: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .critique-section-header { padding: 13px 18px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; transition: background 0.15s; }
+  .critique-section-header:hover { background: var(--surface2); }
+  .section-icon { font-size: 16px; }
+  .section-title { font-size: 14px; font-weight: 600; flex: 1; }
+  .section-pill { font-size: 11px; padding: 2px 10px; border-radius: 10px; font-weight: 500; }
+  .pill-positive { background: #1a3326; color: #6ec89a; }
+  .pill-neutral  { background: #1e2212; color: #c8a96e; }
+  .pill-negative { background: #2a1818; color: #e05c5c; }
+  .section-chevron { color: var(--muted); font-size: 11px; transition: transform 0.2s; }
+  .section-chevron.open { transform: rotate(90deg); }
+  .critique-body { padding: 0 18px 16px; font-size: 14px; line-height: 1.75; color: #ccc; border-top: 1px solid var(--border); }
+  .critique-body.hidden { display: none; }
+  .critique-body p { margin-top: 12px; }
+
+  /* ── Title chips ── */
+  .title-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .title-chip { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+  .title-chip:hover { border-color: var(--accent); color: var(--accent); background: #1a1710; }
+  .title-chip.copied { border-color: var(--green); color: var(--green); }
+
+  /* ── Hashtag chips ── */
+  .hashtag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .hashtag { background: #0e1a10; border: 1px solid #1e3a22; color: #6ec89a; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+
+  /* ── Location card ── */
+  .location-name { font-size: 16px; font-weight: 600; margin-bottom: 10px; color: var(--accent2); }
+  .location-facts { list-style: none; padding: 0; }
+  .location-facts li { font-size: 14px; color: #ccc; line-height: 1.7; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .location-facts li:last-child { border-bottom: none; }
+  .location-facts li::before { content: '✦ '; color: var(--accent); font-size: 11px; }
+
+  /* ── Quote / Roast ── */
+  .roast-card { background: #1a1210; border: 1px solid #3a2020; }
+  .roast-label { color: #e07050 !important; }
+  .roast-text { font-size: 15px; color: #e8c8b8; line-height: 1.7; font-style: italic; }
+  .quote-card { background: #10141a; border: 1px solid #1e2a3a; border-left: 3px solid var(--accent); }
+  .quote-label { color: #6090c8 !important; }
+  .quote-text { font-size: 15px; color: #c8d8e8; line-height: 1.8; font-style: italic; margin-bottom: 8px; }
+  .quote-author { font-size: 13px; color: var(--accent); font-weight: 600; }
+
+  /* ── Loading ── */
+  .loading-state { display: none; text-align: center; padding: 80px 32px; }
+  .loading-state.visible { display: block; }
+  .spinner { width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 24px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  .loading-sub { color: var(--muted); font-size: 14px; }
+  .loading-steps { margin: 28px auto 0; display: flex; flex-direction: column; gap: 8px; max-width: 280px; }
+  .loading-step { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); opacity: 0.4; transition: opacity 0.4s; }
+  .loading-step.active { opacity: 1; color: var(--text); }
+  .loading-step.done { opacity: 0.7; color: var(--green); }
+  .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+  .loading-step.active .step-dot { background: var(--accent); }
+  .loading-step.done .step-dot { background: var(--green); }
+
+  /* ── Misc ── */
+  .error-box { display: none; background: #1e0a0a; border: 1px solid #4a1515; border-radius: 12px; padding: 18px 22px; margin-bottom: 24px; color: #e05c5c; font-size: 14px; }
+  .error-box.visible { display: block; }
+  .error-box strong { display: block; margin-bottom: 4px; }
+  .no-key-banner { display: none; background: #1e1a0a; border: 1px solid #4a3a10; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; color: var(--accent); font-size: 14px; cursor: pointer; }
+  .no-key-banner:hover { background: #252010; }
+  .no-key-banner.visible { display: flex; align-items: center; gap: 10px; }
+</style>
+</head>
+<body>
+
+<!-- API Key Modal -->
+<div class="modal-overlay" id="keyModal">
+  <div class="modal">
+    <h2>🔑 Gemini API Key</h2>
+    <p>Enter your Google Gemini API key. It's stored only in your browser — never sent anywhere except directly to Google's API.</p>
+    <input type="password" id="keyInput" placeholder="AIza..." autocomplete="off" />
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeKeyModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveKey()">Save Key</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">📷</div>
+    <div>
+      <div class="logo-text">Frame & Focus</div>
+      <div class="logo-sub">AI Photo Critique</div>
+    </div>
+  </div>
+  <button class="key-btn" onclick="openKeyModal()">
+    <span class="key-dot" id="keyDot"></span>
+    <span id="keyBtnLabel">API Key</span>
+  </button>
+</header>
+
+<main>
+  <div class="no-key-banner" id="noKeyBanner" onclick="openKeyModal()">⚠️ <span>No API key set — click here to add your Gemini key before uploading.</span></div>
+  <div class="error-box" id="errorBox"><strong>Something went wrong</strong><span id="errorMsg"></span></div>
+
+  <!-- Upload zone -->
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="fileInput" accept="image/*" onchange="handleFile(this.files[0])" />
+    <div class="upload-icon">⬆</div>
+    <div class="upload-title">Drop your photo here</div>
+    <div class="upload-sub">or click to browse</div>
+    <div class="upload-hint">JPG, PNG, WEBP, HEIC — any camera or phone photo</div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" id="loadingState">
+    <div class="spinner"></div>
+    <div class="loading-title">Analysing your photo…</div>
+    <div class="loading-sub">Gemini is studying composition, light, colour and more</div>
+    <div class="loading-steps">
+      <div class="loading-step" id="step1"><div class="step-dot"></div>Reading image data</div>
+      <div class="loading-step" id="step2"><div class="step-dot"></div>Analysing composition</div>
+      <div class="loading-step" id="step3"><div class="step-dot"></div>Evaluating colour & tone</div>
+      <div class="loading-step" id="step4"><div class="step-dot"></div>Crafting feedback</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+
+    <!-- Left: photo + scores + language -->
+    <div class="photo-panel">
+      <div class="photo-frame">
+        <img id="previewImg" src="" alt="Your photo" />
+      </div>
+      <div class="photo-meta">
+        <span class="photo-name" id="photoName"></span>
+        <button class="icon-btn" onclick="resetToUpload()">↑ New photo</button>
+      </div>
+      <div class="score-tiles" id="scoreTiles"></div>
+
+      <!-- Language switcher -->
+      <div class="lang-switcher" id="langSwitcher">
+        <button class="lang-btn active" onclick="switchLang('en')" id="lang-en">🇬🇧 EN</button>
+        <button class="lang-btn" onclick="switchLang('es')" id="lang-es">🇪🇸 ES</button>
+        <button class="lang-btn" onclick="switchLang('ro')" id="lang-ro">🇷🇴 RO</button>
+        <button class="lang-btn" onclick="switchLang('ru')" id="lang-ru">🇷🇺 RU</button>
+      </div>
+    </div>
+
+    <!-- Right: feedback -->
+    <div class="feedback-panel" id="feedbackPanel">
+
+      <div class="feedback-header">
+        <h2>Critique</h2>
+        <span class="overall-badge" id="overallBadge"></span>
+        <button class="icon-btn" id="copyBtn" onclick="copyCritique()">⎘ Copy</button>
+      </div>
+
+      <!-- Summary -->
+      <div id="summaryCard" class="card" style="display:none;">
+        <div class="card-inner">
+          <div id="summaryText" style="font-size:14px; color:#ccc; line-height:1.75;"></div>
+        </div>
+      </div>
+
+      <!-- Critique sections -->
+      <div id="critiqueSections"></div>
+
+      <!-- Next Steps -->
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-label">🚀 Next Steps</div>
+          <div id="nextSteps" style="font-size:14px; color:#ccc; line-height:1.75;"></div>
+        </div>
+      </div>
+
+      <!-- Titles -->
+      <div id="titlesCard" class="card" style="display:none;">
+        <div class="card-inner">
+          <div class="card-label">✏️ Title Suggestions <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;">(click to copy)</span></div>
+          <div class="title-chips" id="titleChips"></div>
+        </div>
+      </div>
+
+      <!-- Social Media -->
+      <div id="socialCard" class="card" style="display:none;">
+        <div class="card-inner">
+          <div class="card-label">📱 Social Media</div>
+          <div style="font-size:11px; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.4px;">Caption</div>
+          <div id="socialCaption" style="font-size:14px; color:#ccc; line-height:1.7; margin-bottom:14px; padding:12px; background:var(--surface2); border-radius:8px; border:1px solid var(--border);"></div>
+          <button class="icon-btn" id="copyCaptionBtn" onclick="copyCaption()" style="margin-bottom:16px;">⎘ Copy caption</button>
+          <div style="font-size:11px; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.4px;">Hashtags</div>
+          <div class="hashtag-chips" id="hashtagChips"></div>
+          <button class="icon-btn" id="copyHashtagsBtn" onclick="copyHashtags()" style="margin-top:10px;">⎘ Copy hashtags</button>
+        </div>
+      </div>
+
+      <!-- Location -->
+      <div id="locationCard" class="card" style="display:none;">
+        <div class="card-inner">
+          <div class="card-label">📍 Location & Facts</div>
+          <div class="location-name" id="locationName"></div>
+          <ul class="location-facts" id="locationFacts"></ul>
+        </div>
+      </div>
+
+      <!-- Roast -->
+      <div id="roastCard" class="card roast-card" style="display:none;">
+        <div class="card-inner">
+          <div class="card-label roast-label">😄 Friendly Roast</div>
+          <div class="roast-text" id="roastText"></div>
+        </div>
+      </div>
+
+      <!-- Quote -->
+      <div id="quoteCard" class="card quote-card" style="display:none;">
+        <div class="card-inner">
+          <div class="card-label quote-label">📷 Photographer's Wisdom</div>
+          <div class="quote-text" id="quoteText"></div>
+          <div class="quote-author" id="quoteAuthor"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script>
+// ── State ──────────────────────────────────────────────
+let apiKey = localStorage.getItem('ff_gemini_key') || '';
+let currentLang = 'en';
+let translationCache = {};
+let rawCritique = null;
+
+// ── Init ───────────────────────────────────────────────
+function init() {
+  updateKeyUI();
+  if (!apiKey) document.getElementById('noKeyBanner').classList.add('visible');
+  const zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) handleFile(f);
+  });
+}
+
+// ── API Key ────────────────────────────────────────────
+function updateKeyUI() {
+  const dot = document.getElementById('keyDot');
+  const lbl = document.getElementById('keyBtnLabel');
+  if (apiKey) { dot.classList.add('active'); lbl.textContent = 'Key saved'; document.getElementById('noKeyBanner').classList.remove('visible'); }
+  else { dot.classList.remove('active'); lbl.textContent = 'Add API Key'; }
+}
+function openKeyModal() { document.getElementById('keyInput').value = apiKey; document.getElementById('keyModal').classList.add('open'); setTimeout(() => document.getElementById('keyInput').focus(), 100); }
+function closeKeyModal() { document.getElementById('keyModal').classList.remove('open'); }
+function saveKey() { const v = document.getElementById('keyInput').value.trim(); if (!v) return; apiKey = v; localStorage.setItem('ff_gemini_key', v); updateKeyUI(); closeKeyModal(); }
+document.getElementById('keyModal').addEventListener('click', e => { if (e.target === document.getElementById('keyModal')) closeKeyModal(); });
+document.getElementById('keyInput').addEventListener('keydown', e => { if (e.key === 'Enter') saveKey(); });
+
+// ── File handling ──────────────────────────────────────
+function handleFile(file) {
+  if (!apiKey) { openKeyModal(); return; }
+  if (!file || !file.type.startsWith('image/')) return;
+  hideError();
+  translationCache = {};
+  currentLang = 'en';
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('lang-en').classList.add('active');
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('previewImg').src = URL.createObjectURL(file);
+  document.getElementById('photoName').textContent = file.name;
+  showLoading();
+  analysePhoto(file);
+}
+
+function showLoading() {
+  document.getElementById('loadingState').classList.add('visible');
+  document.getElementById('results').classList.remove('visible');
+  const steps = ['step1','step2','step3','step4'];
+  steps.forEach(s => document.getElementById(s).className = 'loading-step');
+  let cur = 0;
+  function advance() {
+    if (cur > 0) document.getElementById(steps[cur-1]).className = 'loading-step done';
+    if (cur < steps.length) { document.getElementById(steps[cur]).className = 'loading-step active'; cur++; setTimeout(advance, 900 + Math.random()*400); }
+  }
+  advance();
+}
+
+// ── Prompt ────────────────────────────────────────────
+const PROMPT = `You are an experienced photography teacher, photo editor, and social media expert. Analyse this photograph and respond using EXACTLY these markers in this order:
+
+OVERALL: [excellent|strong|good|developing]
+SUMMARY: [2-3 sentence overall impression]
+SCORE_COMPOSITION: [1-10]
+SCORE_EXPOSURE: [1-10]
+SCORE_COLOUR: [1-10]
+SCORE_IMPACT: [1-10]
+
+SECTION: Composition
+RATING: [positive|neutral|negative]
+CRITIQUE: [Detailed paragraph about framing, rule of thirds, leading lines, depth, negative space, balance]
+
+SECTION: Light & Exposure
+RATING: [positive|neutral|negative]
+CRITIQUE: [Detailed paragraph about exposure, dynamic range, highlights, shadows, light direction and quality]
+
+SECTION: Colour & Tone
+RATING: [positive|neutral|negative]
+CRITIQUE: [Detailed paragraph about colour palette, saturation, white balance, harmony, mood]
+
+SECTION: Subject & Story
+RATING: [positive|neutral|negative]
+CRITIQUE: [Detailed paragraph about what the photo communicates, story, emotion, subject isolation]
+
+SECTION: Post-Processing
+RATING: [positive|neutral|negative]
+CRITIQUE: [Detailed paragraph about visible post-processing, specific Lightroom/Capture One suggestions]
+
+NEXT_STEPS:
+- [actionable tip 1]
+- [actionable tip 2]
+- [actionable tip 3]
+- [actionable tip 4]
+
+TITLES:
+- [evocative/poetic title 1]
+- [evocative/poetic title 2]
+- [evocative/poetic title 3]
+- [short punchy title 4]
+
+SOCIAL_CAPTION: [A compelling 3-4 sentence Instagram/social media caption for this photo. Engaging, storytelling tone. End with a call to action or question.]
+
+HASHTAGS: [30 relevant hashtags separated by spaces, mix of popular and niche: general photography, style-specific, subject-specific, mood-based. Format: #tag1 #tag2 ...]
+
+LOCATION: [If you can identify the location or region shown in the photo, write it here. If not identifiable, write: unknown]
+LOCATION_FACTS:
+- [Interesting fact about this place if identified, else omit this section entirely]
+- [Another interesting fact]
+- [Another interesting fact]
+
+ROAST: [One witty, friendly, specific one-liner joking about something in the photo. Like a friend teasing you, not mean.]
+
+QUOTE: [A real quote from a famous photographer that genuinely relates to this photo's mood/subject/technique]
+QUOTE_AUTHOR: [Firstname Lastname]
+
+Rules: Be honest, specific, constructive. Reference actual visual elements you see. Do NOT add any text outside these markers.`;
+
+// ── Gemini call ────────────────────────────────────────
+async function gemini(parts) {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.7, maxOutputTokens: 8192 } }) }
+  );
+  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || `API error ${res.status}`); }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function analysePhoto(file) {
+  try {
+    const base64 = await fileToBase64(file);
+    const mimeType = file.type || 'image/jpeg';
+    const text = await gemini([{ text: PROMPT }, { inline_data: { mime_type: mimeType, data: base64 } }]);
+    rawCritique = parseResponse(text);
+    translationCache['en'] = rawCritique;
+    renderCritique(rawCritique);
+  } catch (err) {
+    document.getElementById('loadingState').classList.remove('visible');
+    document.getElementById('uploadZone').style.display = '';
+    showError(err.message);
+  }
+}
+
+// ── Parser ────────────────────────────────────────────
+function parseResponse(text) {
+  const get = key => { const m = text.match(new RegExp(key + ':\\s*(.+)', 'i')); return m ? m[1].trim() : ''; };
+  const getList = (key, stopKeys) => {
+    const stopPattern = stopKeys.map(k => `\\n${k}:`).join('|');
+    const m = text.match(new RegExp(key + ':\\s*([\\s\\S]+?)(?=' + stopPattern + '|$)', 'i'));
+    return m ? m[1].split('\n').map(l => l.replace(/^[-*]\s*/, '').trim()).filter(Boolean) : [];
+  };
+
+  const sections = [];
+  const sectionRe = /SECTION:\s*(.+?)\nRATING:\s*(\w+)\nCRITIQUE:\s*([\s\S]+?)(?=\nSECTION:|\nNEXT_STEPS:|$)/gi;
+  let m;
+  while ((m = sectionRe.exec(text)) !== null) {
+    sections.push({ label: m[1].trim(), rating: m[2].trim().toLowerCase(), critique: m[3].trim() });
+  }
+
+  const locationRaw = get('LOCATION');
+  const locationKnown = locationRaw && locationRaw.toLowerCase() !== 'unknown' && locationRaw.toLowerCase() !== 'not identifiable';
+
+  return {
+    overall:     get('OVERALL').toLowerCase() || 'good',
+    summary:     get('SUMMARY'),
+    scores: {
+      composition: parseInt(get('SCORE_COMPOSITION')) || 7,
+      exposure:    parseInt(get('SCORE_EXPOSURE'))    || 7,
+      colour:      parseInt(get('SCORE_COLOUR'))      || 7,
+      impact:      parseInt(get('SCORE_IMPACT'))      || 7,
+    },
+    sections,
+    nextSteps:   getList('NEXT_STEPS',  ['TITLES','SOCIAL_CAPTION','HASHTAGS','LOCATION','ROAST','QUOTE']),
+    titles:      getList('TITLES',      ['SOCIAL_CAPTION','HASHTAGS','LOCATION','ROAST','QUOTE']),
+    socialCaption: get('SOCIAL_CAPTION'),
+    hashtags:    get('HASHTAGS'),
+    location:    locationKnown ? locationRaw : null,
+    locationFacts: locationKnown ? getList('LOCATION_FACTS', ['ROAST','QUOTE']) : [],
+    roast:       get('ROAST'),
+    quote:       get('QUOTE'),
+    quoteAuthor: get('QUOTE_AUTHOR'),
+  };
+}
+
+// ── Markdown ───────────────────────────────────────────
+function md(t) {
+  return (t || '').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>');
+}
+
+// ── Render ────────────────────────────────────────────
+function renderCritique(c) {
+  document.getElementById('loadingState').classList.remove('visible');
+
+  // Badge
+  const badgeMap = { excellent:['badge-excellent','Excellent'], strong:['badge-strong','Strong'], good:['badge-good','Good'], developing:['badge-developing','Developing'] };
+  const [cls, lbl] = badgeMap[c.overall] || badgeMap.good;
+  const badge = document.getElementById('overallBadge');
+  badge.className = `overall-badge ${cls}`;
+  badge.textContent = lbl;
+
+  // Summary
+  const sc = document.getElementById('summaryCard');
+  if (c.summary) { document.getElementById('summaryText').innerHTML = md(c.summary); sc.style.display = ''; }
+  else sc.style.display = 'none';
+
+  // Score tiles
+  const tiles = document.getElementById('scoreTiles');
+  tiles.innerHTML = '';
+  ['composition','exposure','colour','impact'].forEach(k => {
+    const v = c.scores?.[k] || 0;
+    tiles.innerHTML += `<div class="score-tile"><div class="score-tile-num">${v}<span class="score-tile-denom">/10</span></div><div class="score-tile-label">${k}</div></div>`;
+  });
+
+  // Sections (collapsed)
+  const cs = document.getElementById('critiqueSections');
+  cs.innerHTML = '';
+  const icons = ['⊞','☀','◐','◎','✦'];
+  (c.sections||[]).forEach((sec, i) => {
+    const pillCls = `pill-${sec.rating||'neutral'}`;
+    const pillLbl = { positive:'Strong', neutral:'Decent', negative:'Needs Work' }[sec.rating] || 'Decent';
+    cs.innerHTML += `
+      <div class="critique-section">
+        <div class="critique-section-header" onclick="toggleSection(this)">
+          <span class="section-icon">${icons[i]||'◆'}</span>
+          <span class="section-title">${sec.label}</span>
+          <span class="section-pill ${pillCls}">${pillLbl}</span>
+          <span class="section-chevron">▶</span>
+        </div>
+        <div class="critique-body hidden"><p>${md(sec.critique)}</p></div>
+      </div>`;
+  });
+
+  // Next steps
+  const ns = document.getElementById('nextSteps');
+  ns.innerHTML = c.nextSteps?.length
+    ? '<ul style="padding-left:18px;line-height:2">' + c.nextSteps.map(t => `<li>${md(t)}</li>`).join('') + '</ul>'
+    : '';
+
+  // Titles
+  const tc = document.getElementById('titlesCard');
+  const chips = document.getElementById('titleChips');
+  if (c.titles?.length) {
+    chips.innerHTML = c.titles.map(t => `<div class="title-chip" onclick="copyChip(this, '${t.replace(/'/g,"&#39;")}')">${t}</div>`).join('');
+    tc.style.display = '';
+  } else tc.style.display = 'none';
+
+  // Social
+  const soc = document.getElementById('socialCard');
+  if (c.socialCaption) {
+    document.getElementById('socialCaption').textContent = c.socialCaption;
+    const hc = document.getElementById('hashtagChips');
+    hc.innerHTML = (c.hashtags || '').split(/\s+/).filter(h => h.startsWith('#')).map(h => `<span class="hashtag">${h}</span>`).join('');
+    soc.style.display = '';
+  } else soc.style.display = 'none';
+
+  // Location
+  const loc = document.getElementById('locationCard');
+  if (c.location) {
+    document.getElementById('locationName').textContent = c.location;
+    document.getElementById('locationFacts').innerHTML = (c.locationFacts||[]).map(f => `<li>${f}</li>`).join('');
+    loc.style.display = '';
+  } else loc.style.display = 'none';
+
+  // Roast
+  const rc = document.getElementById('roastCard');
+  if (c.roast) { document.getElementById('roastText').textContent = c.roast; rc.style.display = ''; }
+  else rc.style.display = 'none';
+
+  // Quote
+  const qc = document.getElementById('quoteCard');
+  if (c.quote) {
+    document.getElementById('quoteText').textContent = `"${c.quote}"`;
+    document.getElementById('quoteAuthor').textContent = `— ${c.quoteAuthor || 'Unknown'}`;
+    qc.style.display = '';
+  } else qc.style.display = 'none';
+
+  window._lastCritique = c;
+  document.getElementById('results').classList.add('visible');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Language switching ─────────────────────────────────
+async function switchLang(lang) {
+  if (lang === currentLang) return;
+  if (!rawCritique) return;
+
+  // Update button state
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`lang-${lang}`).classList.add('active');
+  currentLang = lang;
+
+  if (lang === 'en') { renderCritique(translationCache['en']); return; }
+  if (translationCache[lang]) { renderCritique(translationCache[lang]); return; }
+
+  // Show loading in the feedback panel
+  const panel = document.getElementById('feedbackPanel');
+  const langNames = { es: 'Spanish', ro: 'Romanian', ru: 'Russian' };
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.add('loading'));
+  panel.style.opacity = '0.4';
+  panel.style.pointerEvents = 'none';
+
+  try {
+    const en = translationCache['en'];
+    const textToTranslate = [
+      `SUMMARY: ${en.summary}`,
+      ...en.sections.map(s => `SECTION: ${s.label}\nCRITIQUE: ${s.critique}`),
+      `NEXT_STEPS:\n${(en.nextSteps||[]).map(t=>'- '+t).join('\n')}`,
+      `TITLES:\n${(en.titles||[]).map(t=>'- '+t).join('\n')}`,
+      `SOCIAL_CAPTION: ${en.socialCaption}`,
+      `ROAST: ${en.roast}`,
+    ].join('\n\n');
+
+    const translatePrompt = `Translate the following photography critique text to ${langNames[lang]}. Keep all the marker labels (SUMMARY:, SECTION:, CRITIQUE:, etc.) in English exactly as they are. Only translate the content after each marker. Keep the exact same format.\n\n${textToTranslate}`;
+
+    const translated = await gemini([{ text: translatePrompt }]);
+
+    // Parse translated text, merge with original for untranslated fields
+    const tParsed = parseResponse('OVERALL: ' + en.overall + '\nSCORE_COMPOSITION: ' + en.scores.composition + '\nSCORE_EXPOSURE: ' + en.scores.exposure + '\nSCORE_COLOUR: ' + en.scores.colour + '\nSCORE_IMPACT: ' + en.scores.impact + '\n' + translated);
+
+    // Keep scores, location, hashtags, quote from original
+    tParsed.scores = en.scores;
+    tParsed.overall = en.overall;
+    tParsed.hashtags = en.hashtags;
+    tParsed.location = en.location;
+    tParsed.locationFacts = en.locationFacts;
+    tParsed.quote = en.quote;
+    tParsed.quoteAuthor = en.quoteAuthor;
+
+    translationCache[lang] = tParsed;
+    renderCritique(tParsed);
+  } catch(err) {
+    showError('Translation failed: ' + err.message);
+    currentLang = 'en';
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('lang-en').classList.add('active');
+  } finally {
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('loading'));
+    panel.style.opacity = '';
+    panel.style.pointerEvents = '';
+  }
+}
+
+// ── Copy helpers ───────────────────────────────────────
+function copyChip(el, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    el.classList.add('copied');
+    el.textContent = '✓ ' + text;
+    setTimeout(() => { el.classList.remove('copied'); el.textContent = text; }, 2000);
+  });
+}
+
+function copyCaption() {
+  const c = window._lastCritique;
+  if (!c) return;
+  navigator.clipboard.writeText(c.socialCaption).then(() => flashBtn('copyCaptionBtn', '✓ Copied!', '⎘ Copy caption'));
+}
+
+function copyHashtags() {
+  const c = window._lastCritique;
+  if (!c) return;
+  navigator.clipboard.writeText(c.hashtags).then(() => flashBtn('copyHashtagsBtn', '✓ Copied!', '⎘ Copy hashtags'));
+}
+
+function copyCritique() {
+  const c = window._lastCritique;
+  if (!c) return;
+  const lines = [
+    'FRAME & FOCUS — Photo Critique',
+    `Overall: ${c.overall.toUpperCase()}`,
+    '', c.summary, '',
+    `Scores: Composition ${c.scores.composition}/10 · Exposure ${c.scores.exposure}/10 · Colour ${c.scores.colour}/10 · Impact ${c.scores.impact}/10`,
+    '',
+    ...(c.sections||[]).flatMap(s => [`── ${s.label} ──`, s.critique, '']),
+    '── Next Steps ──',
+    ...(c.nextSteps||[]).map(t => '• ' + t),
+    '', c.roast ? '😄 ' + c.roast : '',
+    c.quote ? `\n"${c.quote}"\n— ${c.quoteAuthor}` : '',
+  ].filter(l => l !== undefined);
+  navigator.clipboard.writeText(lines.join('\n')).then(() => flashBtn('copyBtn', '✓ Copied', '⎘ Copy'));
+}
+
+function flashBtn(id, on, off) {
+  const btn = document.getElementById(id);
+  btn.textContent = on;
+  btn.classList.add('success');
+  setTimeout(() => { btn.textContent = off; btn.classList.remove('success'); }, 2000);
+}
+
+function toggleSection(header) {
+  const body = header.nextElementSibling;
+  const chev = header.querySelector('.section-chevron');
+  body.classList.toggle('hidden');
+  chev.classList.toggle('open');
+}
+
+// ── Helpers ────────────────────────────────────────────
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+function resetToUpload() {
+  document.getElementById('results').classList.remove('visible');
+  document.getElementById('uploadZone').style.display = '';
+  document.getElementById('fileInput').value = '';
+  hideError();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showError(msg) { document.getElementById('errorMsg').textContent = msg; document.getElementById('errorBox').classList.add('visible'); }
+function hideError() { document.getElementById('errorBox').classList.remove('visible'); }
+
+init();
+</script>
+</body>
+</html>
