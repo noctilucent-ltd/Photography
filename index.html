@@ -185,6 +185,45 @@
   .no-key-banner { display: none; background: #1e1a0a; border: 1px solid #4a3a10; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; color: var(--accent); font-size: 14px; cursor: pointer; }
   .no-key-banner:hover { background: #252010; }
   .no-key-banner.visible { display: flex; align-items: center; gap: 10px; }
+
+  /* ── Chat ── */
+  .chat-fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: var(--accent); border-radius: 50%; border: none; cursor: pointer; font-size: 24px; display: none; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(200,169,110,0.4); z-index: 50; transition: transform 0.2s, background 0.2s; }
+  .chat-fab:hover { transform: scale(1.1); background: var(--accent2); }
+  .chat-fab.visible { display: flex; }
+  .chat-fab .chat-fab-badge { position: absolute; top: -4px; right: -4px; background: var(--green); width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--bg); display: none; }
+  .chat-fab .chat-fab-badge.show { display: block; }
+
+  .chat-panel { position: fixed; bottom: 0; right: 24px; width: 380px; max-width: calc(100vw - 32px); height: 560px; max-height: 80vh; background: var(--surface); border: 1px solid var(--border); border-bottom: none; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; z-index: 60; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); box-shadow: 0 -8px 40px rgba(0,0,0,0.5); }
+  .chat-panel.open { transform: translateY(0); }
+
+  .chat-header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .chat-header-title { font-size: 15px; font-weight: 600; flex: 1; }
+  .chat-header-sub { font-size: 11px; color: var(--muted); }
+  .chat-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; padding: 0 4px; line-height: 1; }
+  .chat-close:hover { color: var(--text); }
+
+  .chat-chips { display: flex; gap: 6px; padding: 10px 14px; overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid var(--border); scrollbar-width: none; }
+  .chat-chips::-webkit-scrollbar { display: none; }
+  .chat-chip { background: var(--surface2); border: 1px solid var(--border); color: #bbb; padding: 5px 12px; border-radius: 16px; font-size: 12px; cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0; }
+  .chat-chip:hover { border-color: var(--accent); color: var(--accent); background: #1a1710; }
+
+  .chat-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .chat-msg { max-width: 88%; font-size: 13.5px; line-height: 1.65; }
+  .chat-msg.user { align-self: flex-end; background: #1e1a10; border: 1px solid #3a3010; color: var(--accent2); padding: 10px 14px; border-radius: 16px 16px 4px 16px; }
+  .chat-msg.ai { align-self: flex-start; background: var(--surface2); border: 1px solid var(--border); color: #ddd; padding: 10px 14px; border-radius: 16px 16px 16px 4px; }
+  .chat-msg.ai.thinking { opacity: 0.6; font-style: italic; color: var(--muted); }
+
+  .chat-input-row { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .chat-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: 10px; font-size: 14px; outline: none; font-family: inherit; resize: none; height: 42px; line-height: 22px; }
+  .chat-input:focus { border-color: var(--accent); }
+  .chat-send { background: var(--accent); border: none; color: #000; padding: 10px 16px; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 700; transition: background 0.2s; flex-shrink: 0; }
+  .chat-send:hover { background: var(--accent2); }
+  .chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  @media (max-width: 600px) {
+    .chat-fab { bottom: 16px; right: 16px; }
+    .chat-panel { right: 0; width: 100vw; border-radius: 16px 16px 0 0; }
+  }
 </style>
 </head>
 <body>
@@ -344,6 +383,36 @@
   </div>
 </main>
 
+<!-- Chat FAB -->
+<button class="chat-fab" id="chatFab" onclick="toggleChat()" title="Ask about this photo">💬<span class="chat-fab-badge" id="chatBadge"></span></button>
+
+<!-- Chat Panel -->
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <div>
+      <div class="chat-header-title">📷 Ask about this photo</div>
+      <div class="chat-header-sub">I know your photo and the critique — ask me anything</div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()">×</button>
+  </div>
+  <div class="chat-chips" id="chatChips">
+    <div class="chat-chip" onclick="askChip(this)">3 alternative compositions I could've tried</div>
+    <div class="chat-chip" onclick="askChip(this)">Fix the exposure step-by-step in Lightroom</div>
+    <div class="chat-chip" onclick="askChip(this)">What focal length would work better here?</div>
+    <div class="chat-chip" onclick="askChip(this)">What would Henri Cartier-Bresson do differently?</div>
+    <div class="chat-chip" onclick="askChip(this)">How to edit this in Capture One?</div>
+    <div class="chat-chip" onclick="askChip(this)">What's the best time of day to reshoot this?</div>
+    <div class="chat-chip" onclick="askChip(this)">What camera settings would improve this?</div>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-msg ai">Hey! I've studied your photo and the full critique. Ask me anything — composition ideas, editing steps, what a famous photographer would do, anything. I'll be straight with you. 📷</div>
+  </div>
+  <div class="chat-input-row">
+    <textarea class="chat-input" id="chatInput" placeholder="Ask anything about this photo…" rows="1"></textarea>
+    <button class="chat-send" id="chatSend" onclick="sendChat()">↑</button>
+  </div>
+</div>
+
 <script>
 // ── State ──────────────────────────────────────────────
 let apiKey = localStorage.getItem('ff_gemini_key') || '';
@@ -480,10 +549,16 @@ async function analysePhoto(file) {
   try {
     const base64 = await fileToBase64(file);
     const mimeType = file.type || 'image/jpeg';
+    chatBase64 = base64;
+    chatMime = mimeType;
+    chatHistory = [];
     const text = await gemini([{ text: PROMPT }, { inline_data: { mime_type: mimeType, data: base64 } }]);
     rawCritique = parseResponse(text);
     translationCache['en'] = rawCritique;
     renderCritique(rawCritique);
+    // Reset chat for new photo
+    document.getElementById('chatMessages').innerHTML = '<div class="chat-msg ai">Hey! I\'ve studied your photo and the full critique. Ask me anything — composition ideas, editing steps, what a famous photographer would do, anything. I\'ll be straight with you. 📷</div>';
+    showChat();
   } catch (err) {
     document.getElementById('loadingState').classList.remove('visible');
     document.getElementById('uploadZone').style.display = '';
@@ -764,12 +839,127 @@ function resetToUpload() {
   document.getElementById('results').classList.remove('visible');
   document.getElementById('uploadZone').style.display = '';
   document.getElementById('fileInput').value = '';
+  document.getElementById('chatFab').classList.remove('visible');
+  document.getElementById('chatPanel').classList.remove('open');
+  chatOpen = false;
   hideError();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function showError(msg) { document.getElementById('errorMsg').textContent = msg; document.getElementById('errorBox').classList.add('visible'); }
 function hideError() { document.getElementById('errorBox').classList.remove('visible'); }
+
+// ── Chat ───────────────────────────────────────────────
+let chatHistory = [];
+let chatBase64 = null;
+let chatMime = null;
+let chatOpen = false;
+
+const CHAT_SYSTEM = `You are a sharp, funny, and deeply knowledgeable photography mentor. You have already analysed this specific photo and produced a critique. The user is asking you follow-up questions about this photo.
+
+Rules:
+- Be direct, specific, and helpful. Reference actual things visible in the photo.
+- Never be generic. Your advice must be specific to THIS photo.
+- Use a bit of dry humour — you're a mentor, not a butler.
+- When it comes to editing software: you have a strong, well-known opinion that Capture One is superior to Lightroom in almost every way. You mention this with conviction but keep it funny — like a friend who can't help themselves. Never miss a chance to gently mock Lightroom while still giving the user what they asked for.
+- Keep answers concise but complete. No padding.`;
+
+function showChat() {
+  document.getElementById('chatFab').classList.add('visible');
+}
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chatPanel').classList.toggle('open', chatOpen);
+  document.getElementById('chatBadge').classList.remove('show');
+  if (chatOpen) setTimeout(() => document.getElementById('chatInput').focus(), 300);
+}
+
+function askChip(el) {
+  document.getElementById('chatInput').value = el.textContent;
+  sendChat();
+}
+
+function appendMsg(text, role, thinking = false) {
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}${thinking ? ' thinking' : ''}`;
+  div.innerHTML = md(text);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const q = input.value.trim();
+  if (!q || !rawCritique) return;
+
+  input.value = '';
+  input.style.height = '42px';
+  document.getElementById('chatSend').disabled = true;
+
+  appendMsg(q, 'user');
+  const thinking = appendMsg('thinking…', 'ai', true);
+
+  // Build context on first message
+  const critiqueContext = `Here is the critique I already produced for this photo:\n\nOverall: ${rawCritique.overall}\nSummary: ${rawCritique.summary}\n\n${(rawCritique.sections||[]).map(s => `${s.label} (${s.rating}): ${s.critique}`).join('\n\n')}\n\nNext steps: ${(rawCritique.nextSteps||[]).join(', ')}`;
+
+  // Build message history for API
+  const messages = [];
+
+  // System + context as first user turn (Gemini doesn't have system role)
+  if (chatHistory.length === 0) {
+    messages.push({
+      role: 'user',
+      parts: [
+        { text: CHAT_SYSTEM + '\n\n' + critiqueContext + '\n\nThe photo is attached.' },
+        ...(chatBase64 ? [{ inline_data: { mime_type: chatMime, data: chatBase64 } }] : []),
+      ]
+    });
+    messages.push({ role: 'model', parts: [{ text: "Got it — I've reviewed the photo and the critique. Ask me anything!" }] });
+  }
+
+  // Add history
+  chatHistory.forEach(h => messages.push(h));
+
+  // Add current question
+  messages.push({ role: 'user', parts: [{ text: q }] });
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: messages, generationConfig: { temperature: 0.85, maxOutputTokens: 1000 } }) }
+    );
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error'); }
+    const data = await res.json();
+    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, no response.';
+
+    thinking.remove();
+    appendMsg(answer, 'ai');
+
+    // Save to history
+    chatHistory.push({ role: 'user', parts: [{ text: q }] });
+    chatHistory.push({ role: 'model', parts: [{ text: answer }] });
+
+    // Badge if closed
+    if (!chatOpen) document.getElementById('chatBadge').classList.add('show');
+
+  } catch(err) {
+    thinking.remove();
+    appendMsg('Error: ' + err.message, 'ai');
+  }
+
+  document.getElementById('chatSend').disabled = false;
+}
+
+// Enter to send, shift+enter for newline
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('chatInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+  });
+});
 
 init();
 </script>
