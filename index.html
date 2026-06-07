@@ -450,10 +450,10 @@ SOCIAL_CAPTION: [2-3 sentence Instagram caption, storytelling tone, ends with a 
 
 HASHTAGS: [Exactly 8 hashtags, best mix of popular and niche. Format: #tag1 #tag2 ...]
 
-LOCATION: [Location/region if identifiable, else: unknown]
-LOCATION_FACTS:
-- [Interesting fact if location known, else omit]
-- [Second fact]
+LOCATION: [Specific location/landmark name if identifiable, else: unknown]
+LOCATION_SUBJECT: [Even if location unknown, describe what type of scene/subject this is, e.g. "Gothic cathedral", "Street market", "Mountain landscape", "Portrait in urban setting"]
+LOCATION_FACT: [If location known: one genuinely interesting specific fact about this exact place — e.g. when it was built, a historical event, a record it holds. If location unknown: one fascinating fact about this type of place or subject that a photographer would find interesting.]
+BEST_TIME: [If location known: best time of day and season to photograph this specific place and why. If location unknown: best conditions or time to photograph this type of scene.]
 
 ROAST: [One witty friendly one-liner about the photo]
 
@@ -506,7 +506,7 @@ function parseResponse(text) {
   }
 
   const locationRaw = get('LOCATION');
-  const locationKnown = locationRaw && locationRaw.toLowerCase() !== 'unknown' && locationRaw.toLowerCase() !== 'not identifiable';
+  const locationKnown = locationRaw && !['unknown','not identifiable','unidentifiable'].includes(locationRaw.toLowerCase().trim());
 
   return {
     overall:     get('OVERALL').toLowerCase() || 'good',
@@ -518,15 +518,18 @@ function parseResponse(text) {
       impact:      parseInt(get('SCORE_IMPACT'))      || 7,
     },
     sections,
-    nextSteps:   getList('NEXT_STEPS',  ['TITLES','SOCIAL_CAPTION','HASHTAGS','LOCATION','ROAST','QUOTE']),
-    titles:      getList('TITLES',      ['SOCIAL_CAPTION','HASHTAGS','LOCATION','ROAST','QUOTE']),
+    nextSteps:     getList('NEXT_STEPS', ['TITLES','SOCIAL_CAPTION','HASHTAGS','LOCATION','ROAST','QUOTE']),
+    titles:        getList('TITLES',     ['SOCIAL_CAPTION','HASHTAGS','LOCATION','ROAST','QUOTE']),
     socialCaption: get('SOCIAL_CAPTION'),
-    hashtags:    get('HASHTAGS'),
-    location:    locationKnown ? locationRaw : null,
-    locationFacts: locationKnown ? getList('LOCATION_FACTS', ['ROAST','QUOTE']) : [],
-    roast:       get('ROAST'),
-    quote:       get('QUOTE'),
-    quoteAuthor: get('QUOTE_AUTHOR'),
+    hashtags:      get('HASHTAGS'),
+    locationKnown,
+    location:      locationKnown ? locationRaw : null,
+    locationSubject: get('LOCATION_SUBJECT'),
+    locationFact:  get('LOCATION_FACT'),
+    bestTime:      get('BEST_TIME'),
+    roast:         get('ROAST'),
+    quote:         get('QUOTE'),
+    quoteAuthor:   get('QUOTE_AUTHOR'),
   };
 }
 
@@ -603,9 +606,13 @@ function renderCritique(c) {
 
   // Location
   const loc = document.getElementById('locationCard');
-  if (c.location) {
-    document.getElementById('locationName').textContent = c.location;
-    document.getElementById('locationFacts').innerHTML = (c.locationFacts||[]).map(f => `<li>${f}</li>`).join('');
+  if (c.locationFact || c.locationSubject) {
+    const nameEl = document.getElementById('locationName');
+    nameEl.textContent = c.locationKnown ? c.location : (c.locationSubject || 'Location unknown');
+    document.getElementById('locationFacts').innerHTML = [
+      c.locationFact ? `<li>✦ ${c.locationFact}</li>` : '',
+      c.bestTime     ? `<li>🕐 <strong>Best time to shoot:</strong> ${c.bestTime}</li>` : '',
+    ].join('');
     loc.style.display = '';
   } else loc.style.display = 'none';
 
